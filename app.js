@@ -7,6 +7,7 @@ const MongoStore = require('connect-mongo');
 const { connectDb } = require('./src/db/connect');
 const passport = require('./src/config/passport');
 const authRouter = require('./src/routes/authRouter');
+const resumeRouter = require('./src/routes/resumeRouter');
 
 const app = express();
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/create_resume';
@@ -39,6 +40,7 @@ app.use(passport.session());
 app.get('/', (req, res) => res.json({ ok: true, service: 'create-resume-backend' }));
 
 app.use('/auth', authRouter);
+app.use('/resumes', resumeRouter);
 
 // Global error handler (HTTP-status shape).
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars

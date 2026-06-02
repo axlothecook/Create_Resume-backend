@@ -20,4 +20,16 @@ const loginRules = [
     body('password').notEmpty().withMessage('Password is required.'),
 ];
 
-module.exports = { handleValidation, signupRules, loginRules };
+// Résumé create/update. `title` is optional; `data` (the full editor state) must be
+// an object when provided.
+const resumeCreateRules = [
+    body('title').optional().isString().trim().isLength({ max: 120 }).withMessage('Title must be at most 120 characters.'),
+    body('data').optional().isObject().withMessage('data must be an object.'),
+];
+
+const resumeUpdateRules = [
+    body('title').optional().isString().trim().isLength({ max: 120 }).withMessage('Title must be at most 120 characters.'),
+    body('data').optional().isObject().withMessage('data must be an object.'),
+];
+
+module.exports = { handleValidation, signupRules, loginRules, resumeCreateRules, resumeUpdateRules };
