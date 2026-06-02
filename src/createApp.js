@@ -8,10 +8,19 @@ const authRouter = require('./routes/authRouter');
 const resumeRouter = require('./routes/resumeRouter');
 
 // Build the Express app. Pure: no DB connection and no listen() — the caller wires
-// those (app.js for real runs, the test harness for tests). `mongoUrl` is the
-// connection string used for the session store; `quiet` silences request logging.
-function createApp({ mongoUrl, sessionSecret, secureCookie = false, quiet = false } = {}) {
+// those (app.js for real runs, the test harness for tests).
+//   mongoUrl     — connection string for the session store
+//   secureCookie — true in production (HTTPS): sets Secure + SameSite=None so the
+//                  cookie works when the SPA and API are on different subdomains
+//   trustProxy   — true when running behind a reverse proxy (Cloudflare Tunnel),
+//                  so Express treats the proxied connection as secure
+//   quiet        — silence request logging (tests)
+function createApp({ mongoUrl, sessionSecret, secureCookie = false, trustProxy = false, quiet = false } = {}) {
     const app = express();
+
+    // Behind Cloudflare/another proxy, honour X-Forwarded-* so `secure` cookies are
+    // sent and req.protocol reflects the original HTTPS request.
+    if (trustProxy) app.set('trust proxy', 1);
 
     app.use(express.json());
     if (!quiet) app.use(morgan('dev'));
@@ -21,6 +30,8 @@ function createApp({ mongoUrl, sessionSecret, secureCookie = false, quiet = fals
     }));
 
     // Sessions stored in MongoDB; the session id rides in an httpOnly cookie.
+    // Cross-site cookies (different subdomain) require SameSite=None + Secure; in dev
+    // (HTTP) use Lax + non-secure so the cookie still works on localhost.
     app.use(session({
         secret: sessionSecret || process.env.SESSION_SECRET || 'dev-insecure-secret',
         resave: false,
@@ -28,7 +39,7 @@ function createApp({ mongoUrl, sessionSecret, secureCookie = false, quiet = fals
         store: MongoStore.create({ mongoUrl }),
         cookie: {
             httpOnly: true,
-            sameSite: 'lax',
+            sameSite: secureCookie ? 'none' : 'lax',
             secure: secureCookie,
             maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
         },

@@ -5,9 +5,11 @@ const { createApp } = require('./src/createApp');
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/create_resume';
 const PORT = process.env.PORT || 3006;
 
+const isProd = process.env.NODE_ENV === 'production';
 const app = createApp({
     mongoUrl: MONGO_URI,
-    secureCookie: process.env.NODE_ENV === 'production',
+    secureCookie: isProd, // HTTPS-only cookie + SameSite=None in production
+    trustProxy: isProd, // behind Cloudflare Tunnel in production
 });
 
 connectDb(MONGO_URI)
