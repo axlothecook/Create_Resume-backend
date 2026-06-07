@@ -9,10 +9,29 @@ function handleValidation(req, res, next) {
     next();
 }
 
+// "Clean" password = no whitespace (space/tab/newline) and no control characters.
+// Checked by codepoint (mirrors the frontend src/auth/passwordRules.js isClean) so
+// the source needs no literal control characters.
+function isCleanPassword(p) {
+    for (let i = 0; i < p.length; i++) {
+        const c = p.charCodeAt(i);
+        if (c <= 0x20) return false;              // space (0x20) + C0 control chars
+        if (c >= 0x7f && c <= 0x9f) return false; // DEL + C1 control chars
+    }
+    return true;
+}
+
+// Password rules (mirror of the frontend src/auth/passwordRules.js): at least 8
+// chars, at least one letter, at least one number, and no whitespace or control
+// characters. Each check reports its own message so the client can show specifics.
 const signupRules = [
     body('email').isEmail().withMessage('A valid email is required.').normalizeEmail(),
     body('username').trim().isLength({ min: 2, max: 40 }).withMessage('Username must be 2–40 characters.'),
-    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters.'),
+    body('password')
+        .isLength({ min: 8 }).withMessage('Password must be at least 8 characters.')
+        .matches(/[a-zA-Z]/).withMessage('Password must contain a letter.')
+        .matches(/[0-9]/).withMessage('Password must contain a number.')
+        .custom((value) => isCleanPassword(value)).withMessage('Password must not contain spaces or invalid characters.'),
 ];
 
 const loginRules = [

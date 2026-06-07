@@ -25,12 +25,24 @@ describe('auth', () => {
         expect(me.body.user.email).toBe('new@example.com');
     });
 
-    test('signup rejects invalid input (bad email, short username, short password)', async () => {
+    test('signup rejects invalid input (bad email, short username, weak password)', async () => {
         const res = await request(app).post('/auth/signup')
             .send({ email: 'notanemail', username: 'x', password: '123' });
         expect(res.status).toBe(400);
-        const paths = res.body.details.map((d) => d.path).sort();
+        // A weak password can trip several password rules at once, so dedupe paths —
+        // we're asserting WHICH fields errored, not how many times each did.
+        const paths = [...new Set(res.body.details.map((d) => d.path))].sort();
         expect(paths).toEqual(['email', 'password', 'username']);
+    });
+
+    test('signup rejects a password missing a number / letter / with spaces', async () => {
+        const bad = ['alllettersonly', '12345678', 'has space1', 'short1'];
+        for (const password of bad) {
+            const res = await request(app).post('/auth/signup')
+                .send({ email: `pw${bad.indexOf(password)}@example.com`, username: 'Valid', password });
+            expect(res.status).toBe(400);
+            expect(res.body.details.some((d) => d.path === 'password')).toBe(true);
+        }
     });
 
     test('signup rejects a duplicate email', async () => {
