@@ -30,7 +30,7 @@ describe('résumé CRUD — happy paths', () => {
         const { agent } = await makeUser(app);
         const res = await agent.get('/resumes');
         expect(res.status).toBe(200);
-        expect(res.body).toMatchObject({ resumes: [], count: 0, max: 10 });
+        expect(res.body).toMatchObject({ resumes: [], count: 0, max: 5 });
     });
 
     test('create stores the résumé and returns 201 + envelope', async () => {
@@ -100,15 +100,15 @@ describe('résumé CRUD — guards & limits', () => {
         expect(aGet.body.resume.title).toBe('A secret');
     });
 
-    test('max-10 cap: 11th create returns 409 and count stays 10', async () => {
+    test('max-5 cap: 6th create returns 409 and count stays 5', async () => {
         const { agent } = await makeUser(app);
-        for (let i = 0; i < 10; i += 1) {
+        for (let i = 0; i < 5; i += 1) {
             await agent.post('/resumes').send({ title: `r${i}` }).expect(201);
         }
         const overflow = await agent.post('/resumes').send({ title: 'overflow' });
         expect(overflow.status).toBe(409);
         const list = await agent.get('/resumes');
-        expect(list.body.count).toBe(10);
+        expect(list.body.count).toBe(5);
     });
 
     test('malformed ObjectId returns 404 (not a 500)', async () => {
