@@ -1,6 +1,6 @@
 const Resume = require('../models/Resume');
 
-const MAX_RESUMES_PER_USER = 10;
+const MAX_RESUMES_PER_USER = 5;
 
 // GET /resumes — list the current user's résumés (newest first, lightweight: no data blob).
 async function listResumes(req, res, next) {
