@@ -1,0 +1,69 @@
+# Build the Create_Resume backend Docker image, publish it to GHCR, then deploy to
+# the Pi. Runs on every push to main:
+#   1. build-and-push — build the arm64 image and push it to GHCR.
+#   2. deploy-to-pi    — join the tailnet, SSH to the Pi, pull + restart the stack.
+# The Pi is reached privately over Tailscale (no public SSH).
+name: Build, publish, and deploy backend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # QEMU lets the amd64 runner emulate arm64 (the Pi's CPU).
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ghcr.io/axlothecook/create-resume-backend:latest
+
+  # --- Deploy the freshly-built stack onto the Raspberry Pi ------------------
+  # A backend push should also roll the stack so the new API image goes live.
+  deploy-to-pi:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Deploy on the Pi
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PI_TAILSCALE_IP }}
+          username: ${{ secrets.PI_USER }}
+          key: ${{ secrets.PI_SSH_KEY }}
+          script: |
+            cd ~/create-resume-deploy
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
