@@ -30,8 +30,13 @@ function createApp({ mongoUrl, sessionSecret, secureCookie = false, trustProxy =
     }));
 
     // Sessions stored in MongoDB; the session id rides in an httpOnly cookie.
-    // Cross-site cookies (different subdomain) require SameSite=None + Secure; in dev
-    // (HTTP) use Lax + non-secure so the cookie still works on localhost.
+    // The SPA and API are served on the SAME origin in production (nginx proxies
+    // resume.axlothecook.com/api -> this backend), so the cookie is FIRST-PARTY and
+    // uses SameSite=Lax — strict browsers ("block cross-site tracking") never drop it.
+    // (Previously the API was a separate subdomain → cross-site → needed SameSite=None,
+    // which those browsers blocked, breaking login on some phones.)
+    // In production we still set Secure (HTTPS only); in dev (HTTP) Secure is off so
+    // the cookie works on localhost.
     app.use(session({
         secret: sessionSecret || process.env.SESSION_SECRET || 'dev-insecure-secret',
         resave: false,
@@ -39,7 +44,7 @@ function createApp({ mongoUrl, sessionSecret, secureCookie = false, trustProxy =
         store: MongoStore.create({ mongoUrl }),
         cookie: {
             httpOnly: true,
-            sameSite: secureCookie ? 'none' : 'lax',
+            sameSite: 'lax',
             secure: secureCookie,
             maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
         },
