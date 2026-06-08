@@ -37,6 +37,9 @@ const signupRules = [
 const loginRules = [
     body('email').isEmail().withMessage('A valid email is required.').normalizeEmail(),
     body('password').notEmpty().withMessage('Password is required.'),
+    // Optional "remember me": when true the session cookie lasts 30 days, else it's a
+    // browser-session cookie. Coerce to a real boolean so the controller can trust it.
+    body('rememberMe').optional().toBoolean(),
 ];
 
 // Résumé create/update. `title` is optional; `data` (the full editor state) must be

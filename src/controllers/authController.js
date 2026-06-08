@@ -22,13 +22,22 @@ async function signup(req, res, next) {
     }
 }
 
+// 30 days, in ms — the "remember me" session length.
+const REMEMBER_ME_MAX_AGE = 1000 * 60 * 60 * 24 * 30;
+
 // POST /auth/login — authenticate via the local strategy and start a session.
+// `rememberMe` (boolean) controls how long the session cookie lasts:
+//   true  → persistent for 30 days.
+//   false → a browser-SESSION cookie (cleared when the browser fully closes).
 function login(req, res, next) {
     passport.authenticate('local', (err, user, info) => {
         if (err) return next(err);
         if (!user) return res.status(401).json({ error: (info && info.message) || 'Invalid credentials.' });
         req.login(user, (loginErr) => {
             if (loginErr) return next(loginErr);
+            // Override this session's cookie lifetime based on the remember-me choice.
+            // Setting maxAge=null makes it a session cookie (no Expires/Max-Age sent).
+            req.session.cookie.maxAge = req.body.rememberMe ? REMEMBER_ME_MAX_AGE : null;
             return res.json({ user: user.toSafeJSON() });
         });
     })(req, res, next);
