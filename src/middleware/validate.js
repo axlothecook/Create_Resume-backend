@@ -26,7 +26,15 @@ function isCleanPassword(p) {
 // characters. Each check reports its own message so the client can show specifics.
 const signupRules = [
     body('email').isEmail().withMessage('A valid email is required.').normalizeEmail(),
-    body('username').trim().isLength({ min: 2, max: 40 }).withMessage('Username must be 2–40 characters.'),
+    body('username')
+        .trim()
+        .isLength({ min: 2, max: 40 }).withMessage('Username must be 2–40 characters.')
+        // The username is stored in the CLEAR and shown in the UI, so it must never be the
+        // password. One account was created with its password sitting in this field (an
+        // autofill slip — the form and API map the two correctly), which silently exposed
+        // the secret. Reject it at the door rather than trust the client.
+        .custom((value, { req }) => value !== req.body.password)
+        .withMessage('Username must not be the same as your password.'),
     body('password')
         .isLength({ min: 8 }).withMessage('Password must be at least 8 characters.')
         .matches(/[a-zA-Z]/).withMessage('Password must contain a letter.')
