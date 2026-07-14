@@ -57,12 +57,33 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
+      # The tailscale action returns as soon as tailscaled is up and authenticated, but
+      # the PATH to the Pi (peer discovery / NAT traversal) can take a few more seconds.
+      # SSH dialling into that gap failed the deploy with `dial tcp ***:22: i/o timeout`
+      # even though the build was fine. Wait for port 22 to actually answer first.
+      - name: Wait for the Pi to be reachable over Tailscale
+        run: |
+          for i in $(seq 1 30); do
+            if timeout 5 bash -c "</dev/tcp/${{ secrets.PI_TAILSCALE_IP }}/22" 2>/dev/null; then
+              echo "Pi answered on port 22 (attempt $i)"
+              exit 0
+            fi
+            echo "attempt $i/30: no route to the Pi yet, retrying in 5s…"
+            sleep 5
+          done
+          echo "::error::the Pi never became reachable on port 22 over Tailscale (2.5 min)"
+          exit 1
+
       - name: Deploy on the Pi
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.PI_TAILSCALE_IP }}
           username: ${{ secrets.PI_USER }}
           key: ${{ secrets.PI_SSH_KEY }}
+          # CONNECT timeout (default 30s). The wait step above means the route is already
+          # up, so this is just headroom for a slow handshake — NOT the same knob as
+          # command_timeout (which bounds how long the remote COMMAND may run).
+          timeout: 60s
           script: |
             cd ~/create-resume-deploy
             docker compose -f docker-compose.prod.yml pull
