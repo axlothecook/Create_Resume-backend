@@ -35,6 +35,18 @@ describe('auth', () => {
         expect(paths).toEqual(['email', 'password', 'username']);
     });
 
+    test('signup rejects a username that IS the password (it is stored in the clear)', async () => {
+        const secret = 'supersecret123';
+        const res = await request(app).post('/auth/signup')
+            .send({ email: 'same@example.com', username: secret, password: secret });
+        expect(res.status).toBe(400);
+        expect(res.body.details.some((d) => d.path === 'username')).toBe(true);
+        // And nothing was persisted, so the secret never landed in a plaintext field.
+        const created = await request(app).post('/auth/login')
+            .send({ email: 'same@example.com', password: secret });
+        expect(created.status).toBe(401);
+    });
+
     test('signup rejects a password missing a number / letter / with spaces', async () => {
         const bad = ['alllettersonly', '12345678', 'has space1', 'short1'];
         for (const password of bad) {
