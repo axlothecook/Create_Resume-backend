@@ -23,7 +23,7 @@ The auth and resume endpoints are covered by 25 tests. The tests create a tempor
 [Node.js](https://nodejs.org) / [Express 5](https://expressjs.com): Node runs the server, Express handles the incoming requests and the middleware <br />
 [MongoDB](https://www.mongodb.com) with [Mongoose](https://mongoosejs.com): stores users' data and their resumes as documents <br />
 [Passport](https://www.passportjs.org): handles the password login, checked against my own database <br />
-[express-session](https://github.com/expressjs/session) + [connect-mongo](https://github.com/jdesboeufs/connect-mongo): server-side sessions stored in MongoDB <br />
+[express-session](https://github.com/expressjs/session) and [connect-mongo](https://github.com/jdesboeufs/connect-mongo): server-side sessions stored in MongoDB <br />
 [bcryptjs](https://github.com/dcodeIO/bcrypt.js): password hashing <br />
 [express-validator](https://express-validator.github.io): validates and sanitizes request input <br />
 [Jest](https://jestjs.io), [supertest](https://github.com/ladjs/supertest) and [mongodb-memory-server](https://github.com/typegoose/mongodb-memory-server): the test setup
