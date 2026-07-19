@@ -1,49 +1,29 @@
-# Resume Creator — Backend
+# Resume Creator Backend
+The API of Resume Creator, built with Express and MongoDB. It handles everything related to user accounts and the saved resumes for the frontend; everything else about building a resume happens in the browser.
 
-API-only backend for the [Resume Creator](https://github.com/axlothecook/Create_Resume) app.
+## What it does
+<ul> 
+	<li>accounts: sign up, log in and log out, with passwords hashed before storing</li> 
+	<li>sessions: logging in lasts 7 days, or 30 <b>with</b> `remember me` option ticked on</li> 
+	<li>saved resumes: CRUD with a limit of 5 per account, stored as JSON documents</li> 
+	<li>request validation with express-validator</li> 
+</ul>
 
-## Stack
-- **Express 5** (JSON API)
-- **MongoDB** via **Mongoose**
-- **Session + cookie auth**: Passport (local strategy) + `express-session` + `connect-mongo` + `bcryptjs`
-- Validation via `express-validator`
 
-## Setup
-```bash
-npm install
-cp .env.example .env   # then fill in MONGO_URI, SESSION_SECRET, etc.
-npm run dev            # nodemon on PORT (default 3006)
-npm test               # Jest (in-memory Mongo, no local DB needed)
-```
-Requires a running MongoDB for dev/prod (local: `mongodb://localhost:27017`).
+## The login cookie story
+The session rides in an httpOnly cookie. Originally the API lived on its own subdomain, which made the cookie cross-site, and strict browsers like Safari, Firefox and Brave dropped it, which resulted in login failing on phones. The fix was moving everything to one domain, where nginx serves the app and proxies `/api` to this backend. The cookie is now first-party (`SameSite=Lax`) and works everywhere.
 
-## Docker
-```bash
-docker build -t create-resume-backend .
-docker run --rm -p 3006:3006 --env-file .env create-resume-backend
-```
-The image is production-only (`npm ci --omit=dev`, runs `node app.js` as the `node`
-user). The MongoDB container + multi-service compose live in the separate deploy repo
-(same pattern as gaming-shop-deploy on the Pi).
+## Why no graph here
+The backend's place in the system is already drawn twice: the [frontend README](https://github.com/axlothecook/Create_Resume/blob/main/README.md) shows what stays in the browser and what travels to the API, and the [umbrella README](https://github.com/axlothecook/Create_Resume-umbrella/blob/main/README.md) shows how the repos connect. A third graph would just repeat those two.
 
-## Production notes
-When `NODE_ENV=production` the app: trusts the reverse proxy (`trust proxy`, for
-Cloudflare Tunnel) and sets a **Secure + SameSite=None** httpOnly session cookie — so
-it must be served over **HTTPS**, and `CLIENT_ORIGIN` must be the real frontend URL
-(needed for CORS + cross-subdomain cookies).
+## Testing
+The auth and resume endpoints are covered by 25 tests. The tests create a temporary MongoDB that lives only while they run and gets thrown away after, so they don't need a real database. They run in CI before every deploy; if any fail, nothing gets deployed. The pipeline itself is explained in [homelab-ci-cd](https://github.com/axlothecook/homelab-ci-cd).
 
-## Structure
-```
-app.js              entry point
-src/
-  db/connect.js     mongoose connection
-  models/           mongoose schemas (User, Resume)
-  config/           passport / session setup
-  middleware/       auth guards, validators
-  controllers/      route handlers
-  routes/           express routers
-```
-
-## Endpoints (planned)
-- `POST /auth/signup`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
-- `GET/POST/PUT/DELETE /resumes` (saved résumés, max 10/account)
+## Tech stack
+[Node.js](https://nodejs.org) / [Express 5](https://expressjs.com): Node runs the server, Express handles the incoming requests and the middleware <br />
+[MongoDB](https://www.mongodb.com) with [Mongoose](https://mongoosejs.com): stores users' data and their resumes as documents <br />
+[Passport](https://www.passportjs.org): handles the password login, checked against my own database <br />
+[express-session](https://github.com/expressjs/session) + [connect-mongo](https://github.com/jdesboeufs/connect-mongo): server-side sessions stored in MongoDB <br />
+[bcryptjs](https://github.com/dcodeIO/bcrypt.js): password hashing <br />
+[express-validator](https://express-validator.github.io): validates and sanitizes request input <br />
+[Jest](https://jestjs.io) + [supertest](https://github.com/ladjs/supertest) + [mongodb-memory-server](https://github.com/typegoose/mongodb-memory-server): the test setup
