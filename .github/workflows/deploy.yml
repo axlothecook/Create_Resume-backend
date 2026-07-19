@@ -1,7 +1,9 @@
 # Build the Create_Resume backend Docker image, publish it to GHCR, then deploy to
 # the Pi. Runs on every push to main:
-#   1. build-and-push — build the arm64 image and push it to GHCR.
-#   2. deploy-to-pi    — join the tailnet, SSH to the Pi, pull + restart the stack.
+#   1. test           — Jest + supertest against an in-memory Mongo; the gate that
+#      stops a broken build reaching prod (a push to main goes straight to the Pi).
+#   2. build-and-push — build the arm64 image and push it to GHCR.
+#   3. deploy-to-pi    — join the tailnet, SSH to the Pi, pull + restart the stack.
 # The Pi is reached privately over Tailscale (no public SSH).
 name: Build, publish, and deploy backend
 
@@ -15,7 +17,28 @@ permissions:
   packages: write
 
 jobs:
+  # Gate: the API tests must pass BEFORE we build/deploy. They run against an
+  # in-memory MongoDB (mongodb-memory-server), so no database service is needed.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: API tests
+        run: npm test
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
