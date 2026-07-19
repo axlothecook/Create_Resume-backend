@@ -26,4 +26,4 @@ The auth and resume endpoints are covered by 25 tests. The tests create a tempor
 [express-session](https://github.com/expressjs/session) + [connect-mongo](https://github.com/jdesboeufs/connect-mongo): server-side sessions stored in MongoDB <br />
 [bcryptjs](https://github.com/dcodeIO/bcrypt.js): password hashing <br />
 [express-validator](https://express-validator.github.io): validates and sanitizes request input <br />
-[Jest](https://jestjs.io) + [supertest](https://github.com/ladjs/supertest) + [mongodb-memory-server](https://github.com/typegoose/mongodb-memory-server): the test setup
+[Jest](https://jestjs.io), [supertest](https://github.com/ladjs/supertest) and [mongodb-memory-server](https://github.com/typegoose/mongodb-memory-server): the test setup
