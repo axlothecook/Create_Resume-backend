@@ -111,3 +111,10 @@ jobs:
             cd ~/create-resume-deploy
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d
+            # Reclaim disk from the image this deploy just replaced. Every deploy leaves
+            # the previous :latest dangling; without this they pile up until the disk
+            # fills and Mongo crash-loops (No space left on device) → site goes down.
+            # -f skips the prompt; only UNTAGGED/unused images are removed (never the
+            # running containers' images).
+            docker image prune -f
+            docker builder prune -f
