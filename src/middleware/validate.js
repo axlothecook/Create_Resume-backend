@@ -24,6 +24,16 @@ function isCleanPassword(p) {
 // Password rules (mirror of the frontend src/auth/passwordRules.js): at least 8
 // chars, at least one letter, at least one number, and no whitespace or control
 // characters. Each check reports its own message so the client can show specifics.
+// The password policy itself, as a fresh validation chain each call (express-validator
+// chains are stateful builders, so they cannot be shared as a constant). Extracted
+// because signup and password-reset must enforce the SAME rules — a reset that
+// accepted weaker passwords than signup would be a way around the policy.
+const passwordChain = () => body('password')
+    .isLength({ min: 8 }).withMessage('Password must be at least 8 characters.')
+    .matches(/[a-zA-Z]/).withMessage('Password must contain a letter.')
+    .matches(/[0-9]/).withMessage('Password must contain a number.')
+    .custom((value) => isCleanPassword(value)).withMessage('Password must not contain spaces or invalid characters.');
+
 const signupRules = [
     body('email').isEmail().withMessage('A valid email is required.').normalizeEmail(),
     body('username')
@@ -35,11 +45,7 @@ const signupRules = [
         // the secret. Reject it at the door rather than trust the client.
         .custom((value, { req }) => value !== req.body.password)
         .withMessage('Username must not be the same as your password.'),
-    body('password')
-        .isLength({ min: 8 }).withMessage('Password must be at least 8 characters.')
-        .matches(/[a-zA-Z]/).withMessage('Password must contain a letter.')
-        .matches(/[0-9]/).withMessage('Password must contain a number.')
-        .custom((value) => isCleanPassword(value)).withMessage('Password must not contain spaces or invalid characters.'),
+    passwordChain(),
 ];
 
 const loginRules = [
@@ -48,6 +54,25 @@ const loginRules = [
     // Optional "remember me": when true the session cookie lasts 30 days, else it's a
     // browser-session cookie. Coerce to a real boolean so the controller can trust it.
     body('rememberMe').optional().toBoolean(),
+];
+
+// Forgot password. Same normalizer as signup, so a Gmail-dot/case variant of the
+// signup address still resolves to the stored account. A format 400 here reveals
+// nothing about account existence — only that the string isn't an email.
+const forgotPasswordRules = [
+    body('email').isEmail().withMessage('A valid email is required.').normalizeEmail(),
+];
+
+// Reset password. The token is checked for SHAPE only (64 hex chars, what
+// issueResetToken produces) — whether it is real, live and whose it is gets decided
+// by the database lookup, never by validation, so no rejection here can reveal
+// anything about a token's existence.
+const resetPasswordRules = [
+    body('token')
+        .isString().withMessage('A reset token is required.')
+        .bail()
+        .matches(/^[a-f0-9]{64}$/).withMessage('A reset token is required.'),
+    passwordChain(),
 ];
 
 // Résumé create/update. `title` is optional; `data` (the full editor state) must be
@@ -62,4 +87,12 @@ const resumeUpdateRules = [
     body('data').optional().isObject().withMessage('data must be an object.'),
 ];
 
-module.exports = { handleValidation, signupRules, loginRules, resumeCreateRules, resumeUpdateRules };
+module.exports = {
+    handleValidation,
+    signupRules,
+    loginRules,
+    forgotPasswordRules,
+    resetPasswordRules,
+    resumeCreateRules,
+    resumeUpdateRules,
+};
