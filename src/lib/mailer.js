@@ -55,12 +55,10 @@ async function sendPasswordReset({ to, url }) {
         to,
         subject: 'Reset your Resume Creator password',
         text: [
-            'Someone asked to reset the password for this Resume Creator account.',
-            '',
             `Choose a new password here (the link is valid for 15 minutes):`,
             url,
             '',
-            "If this wasn't you, you can ignore this email — your password stays unchanged.",
+            "If this wasn't you, you can ignore this email.",
             '',
         ].join('\n'),
     });
