@@ -7,15 +7,37 @@ let app;
 
 // Start an ephemeral in-memory MongoDB, connect mongoose, and build the app whose
 // session store points at the same instance. Returns the Express app for supertest.
-async function startTestApp() {
+// `appOptions` overrides createApp settings for tests that need a non-default app
+// (e.g. trustProxy, to reproduce the production proxy chain).
+async function startTestApp(appOptions = {}) {
     mongod = await MongoMemoryServer.create();
     const uri = mongod.getUri();
     await mongoose.connect(uri);
-    app = createApp({ mongoUrl: uri, sessionSecret: 'test-secret', quiet: true });
+    // rateLimits off by default here: the whole suite shares one IP and the limiter
+    // store has no per-test reset, so counts would bleed between unrelated tests.
+    // tests/rate-limit.test.js opts back in to cover the limiters themselves.
+    app = createApp({
+        mongoUrl: uri,
+        sessionSecret: 'test-secret',
+        quiet: true,
+        rateLimits: false,
+        ...appOptions,
+    });
     return app;
 }
 
 async function stopTestApp() {
+    // Close the session store's own MongoClient BEFORE stopping the server, so no
+    // open socket is left to die with an ECONNRESET mid-teardown.
+    if (app && app.sessionStore) {
+        // The store builds its TTL index in a background promise chain; a fast suite
+        // can reach teardown while that's still in flight, and close() would then
+        // reject it as an UNHANDLED rejection (it isn't the promise close() returns),
+        // failing the suite. A no-op get() awaits that chain via the public API, so
+        // by the time close() runs nothing is left to interrupt.
+        await new Promise((resolve) => app.sessionStore.get('teardown-sync', resolve));
+        await app.sessionStore.close();
+    }
     await mongoose.disconnect();
     if (mongod) await mongod.stop();
 }
